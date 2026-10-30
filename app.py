@@ -11,7 +11,7 @@ st.markdown("**조건:** 배당금은 현금 누적 후 매년 4월 말, 10월 �
 
 tickers = ['QLD', 'SCHD', 'DIVO', 'JEPI', 'JEPQ']
 
-# 데이터 다운로드 (캐싱을 사용하여 매번 다운로드하지 않음)
+# 데이터 다운로드 (캐싱 사용)
 @st.cache_data
 def load_data():
     dfs = {}
@@ -53,7 +53,7 @@ total_w = sum(weights)
 if total_w == 0:
     st.error("⚠️ 비중의 합이 0입니다. 왼쪽 사이드바에서 비중을 조절해주세요.")
 else:
-    # 비중 정규화 (자동으로 100% 기준으로 맞춤)
+    # 비중 정규화 (자동 100% 맞춤)
     weights_dict = {t: w / total_w for t, w in zip(tickers, weights)}
     
     # 백테스트 로직
@@ -94,14 +94,17 @@ else:
     mdd = ((cum_returns - cum_returns.cummax()) / cum_returns.cummax()).min() * 100
     
     sharpe = daily_returns.mean() / daily_returns.std() * np.sqrt(252)
-    sortino = daily_returns.mean() / daily_returns[daily_returns < 0].std() * np.sqrt(252)
+    
+    downside_returns = daily_returns[daily_returns < 0]
+    sortino = daily_returns.mean() / downside_returns.std() * np.sqrt(252) if len(downside_returns) > 0 else 0
 
-    # 화면 상단 결과 요약
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("연평균 수익률 (CAGR)", f"{cagr:.2f}%")
-    col2.metric("최대 낙폭 (MDD)", f"{mdd:.2f}%")
-    col3.metric("샤프 지수 (Sharpe)", f"{sharpe:.2f}")
-    col4.metric("최종 자산 ($10,000 투자 시)", f"${port_series.iloc[-1]:,.0f}")
+    # 화면 상단 결과 요약 (5개 칸으로 확장: CAGR, MDD, Sharpe, Sortino, 최종자산)
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("CAGR", f"{cagr:.2f}%")
+    col2.metric("MDD", f"{mdd:.2f}%")
+    col3.metric("샤프 지수", f"{sharpe:.2f}")
+    col4.metric("소르티노 지수", f"{sortino:.2f}")
+    col5.metric("최종 자산", f"${port_series.iloc[-1]:,.0f}")
 
     # 인터랙티브 차트 그리기
     fig = go.Figure()
